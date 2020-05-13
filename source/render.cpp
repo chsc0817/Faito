@@ -119,7 +119,7 @@ u32 MakeProgramObject(u32 vertex_shader_object, u32 fragment_shader_object) {
 	return program;
 }
 
-render_context MakeRenderContext() {
+void ReloadRenderContext(render_context *renderer) {
 	GlLoad(glGenBuffers);
 	GlLoad(glBindBuffer);
 	GlLoad(glDeleteBuffers);
@@ -149,7 +149,10 @@ render_context MakeRenderContext() {
 	GlLoad(glGetProgramiv);
 	GlLoad(glGetUniformLocation);
 	GlLoad(glActiveTexture);
+}
 
+render_context MakeRenderContext(f32 target_width_over_height, f32 canvas_width_in_texels) {
+	ReloadRenderContext(null);
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(GlHandleDebugMessage, null);
@@ -184,7 +187,6 @@ out vec4 pixel_color;
 void main() {
 	vec4 diffuse_color = texture(diffuse_texture, fragment_texture_coordinate);
 	pixel_color = fragment_color * diffuse_color;
-	pixel_color = vec4(diffuse_color.a, 1 - diffuse_color.a, 1 - diffuse_color.a, diffuse_color.a);
 }
 )";
 	
@@ -194,6 +196,15 @@ void main() {
 	context.program = MakeProgramObject(vertex_shader, fragment_shader);
 
 	context.diffuse_texture_uniform = glGetUniformLocation(context.program, "diffuse_texture");
+
+	rgba32 white = Color32(1.0f, 1.0f, 1.0f);
+	context.white_texture = MakeTexture(1, 1, u8_array{white.values, 4});
+
+	context.target_width_over_height = target_width_over_height;
+	context.canvas_width_in_texels = canvas_width_in_texels;
+	context.canvas_height_in_texels = canvas_width_in_texels * target_width_over_height;
+	context.canvas_texel_width = 1.0f / canvas_width_in_texels;
+	context.canvas_texel_height = context.canvas_texel_width * target_width_over_height;
 
 	return context;
 }
@@ -222,7 +233,7 @@ texture MakeTexture (s32 width, s32 height, u8_array pixels) {
 	return result;
 }
 
-void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y, f32 tx, f32 ty, f32 width, f32 height, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, f32 alpha, f32 z) {
+void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y, f32 tx, f32 ty, f32 width, f32 height, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
 	auto command = renderer->commands + renderer->command_count; 
 	renderer->command_count++;
 	assert(renderer->command_count <= ArrayCountOf(renderer->commands));
@@ -234,8 +245,8 @@ void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y
 	f32 texel_width = 1.0f / my_texture.width; 
     f32 texel_height = 1.0f / my_texture.height;
 
-    const f32 canvas_texel_width = 1.0f / 256.0f;
-    const f32 canvas_texel_height = canvas_texel_width * 16.0f / 9.0f;
+    f32 canvas_texel_width = renderer->canvas_texel_width;
+    f32 canvas_texel_height = renderer->canvas_texel_height;
     x_alignment = Lerp(x_alignment, 1 - x_alignment, x_flip);
     y_alignment = Lerp(y_alignment, 1 - y_alignment, y_flip);
     x -= x_alignment * width;
@@ -260,28 +271,28 @@ void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y
 	vertices[0].z = z;
 	vertices[0].u = tx0;
 	vertices[0].v = ty0;
-	vertices[0].color = Color32(1.0f, 1.0f, 1.0f, alpha);
+	vertices[0].color = color;
 
 	vertices[1].x = (x + width) * canvas_texel_width;
 	vertices[1].y = y * canvas_texel_height;
 	vertices[1].z = z;
 	vertices[1].u = tx1;
 	vertices[1].v = ty0;
-	vertices[1].color = Color32(1.0f, 1.0f, 1.0f, alpha);
+	vertices[1].color = color;
 
 	vertices[2].x = (x + width) * canvas_texel_width;
 	vertices[2].y = (y + height) * canvas_texel_height;
 	vertices[2].z = z;
 	vertices[2].u = tx1;
 	vertices[2].v = ty1;
-	vertices[2].color = Color32(1.0f, 1.0f, 1.0f, alpha);
+	vertices[2].color = color;
 
 	vertices[3].x = x * canvas_texel_width;
 	vertices[3].y = (y + height) * canvas_texel_height;
 	vertices[3].z = z;
 	vertices[3].u = tx0;
 	vertices[3].v = ty1;
-	vertices[3].color = Color32(1.0f, 1.0f, 1.0f, alpha);
+	vertices[3].color = color;
 
 	vertices[4] = vertices[0];
 	vertices[5] = vertices[2];
@@ -309,8 +320,13 @@ void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y
 #endif
 }
 
-void DrawTexture(render_context *renderer, texture my_texture, f32 x, f32 y, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, f32 alpha, f32 z) {
-	DrawTexturedRect(renderer, my_texture, x, y, 0, 0, my_texture.width, my_texture.height, x_alignment, y_alignment, x_flip, y_flip, alpha, z);
+void DrawRect(render_context *renderer, f32 x, f32 y, f32 width, f32 height, rgba32 color, f32 x_alignment, f32 y_alignment, f32 z) {
+	DrawTexturedRect(renderer, renderer->white_texture, x, y, 0, 0, width, height, x_alignment, y_alignment, 0, 0, color, z);
+
+}
+
+void DrawTexture(render_context *renderer, texture my_texture, f32 x, f32 y, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
+	DrawTexturedRect(renderer, my_texture, x, y, 0, 0, my_texture.width, my_texture.height, x_alignment, y_alignment, x_flip, y_flip, color, z);
 }
 
 void Render(render_context *renderer) {

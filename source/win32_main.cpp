@@ -90,7 +90,7 @@ s32 main(s32 argument_count, cstring arguments[]) {
     api.application.init_data = api.application.init(&api);
     
     while(Win32HandleMessage(&api)) {
-        LoadCode(&api.application);
+        api.code_was_reloaded = LoadCode(&api.application);
         
         api.application.update(&api, api.application.init_data);
     }   

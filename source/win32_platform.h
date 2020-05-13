@@ -66,6 +66,8 @@ struct win32_api {
     u64 time_in_ticks;
     f32 delta_seconds;
 
+    bool code_was_reloaded;
+
     user_input input;  
 };
 
