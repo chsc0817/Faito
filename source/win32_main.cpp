@@ -11,6 +11,7 @@ u64 GetLastWriteTime(cstring file) {
 #if defined LIVE_CODE_RELOADING
 
 #include "input.cpp"
+#include "memory_arena.cpp"
 
 bool LoadCode(code_info *code) {
     bool do_reload = false;
@@ -81,7 +82,20 @@ void InitCode(code_info *code, cstring application_path) {
 
 #endif
 
+#if 1
+
 s32 main(s32 argument_count, cstring arguments[]) {
+
+#else
+
+s32 WinMain(HINSTANCE instance, HINSTANCE prev_istance, LPSTR command_line, int show_command) {
+
+    // TODO: FIX THIS!!!!!!!!!
+    s32 argument_count;
+    cstring *arguments = CommandLineToArgW(command_line, &argument_count);
+
+#endif
+
     win32_api api;
     Win32Init(&api); 
     

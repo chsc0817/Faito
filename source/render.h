@@ -28,6 +28,8 @@ struct pos2{
     s32 x,y;
 };
 
+// max is exclusiv
+// so that size is max - min
 struct box2 {
 	pos2 min, max;
 };
@@ -47,7 +49,7 @@ struct render_command {
 
 struct render_context {
 	render_vertex vertices[4096];
-	render_command commands[256];
+	render_command commands[512];
 	u32 vertex_count;
 	u32 command_count;
 	u32 program;

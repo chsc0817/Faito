@@ -224,9 +224,7 @@ READ_ENTIRE_FILE_SIGNATURE(Win32ReadEntireFile) {
     assert(attribute_data.nFileSizeHigh == 0);
     u64 byte_count = (((u64)attribute_data.nFileSizeHigh) << 32) | attribute_data.nFileSizeLow;
     
-    u8_array data;
-    data.count = byte_count;
-    data.base = new u8[data.count];
+    u8_array data = allocate(arena, byte_count, 1);
     
     DWORD bytes_read_count;
     if (!ReadFile(file_handle, data.base, data.count, &bytes_read_count, null)) {
@@ -238,17 +236,23 @@ READ_ENTIRE_FILE_SIGNATURE(Win32ReadEntireFile) {
     return { data, true };
 }
 
-FREE_FILE_DATA_SIGNATURE(Win32FreeFileData) {
-    delete [] data.base;
+MAKE_MEMORY_ARENA(Win32MakeMemoryArena)
+{
+    memory_arena arena;
+    arena.buffer.base  = (u8 *)VirtualAlloc(null, byte_count, MEM_COMMIT, PAGE_READWRITE);
+    arena.buffer.count = byte_count;
+    arena.used_count = 0;
+    
+    return arena;
 }
 
 void Win32Init(win32_api *api) {
     *api = {};
     // platform interface
-    api->create_window = Win32CreateWindow;
-    api->display_window = Win32DisplayWindow;
-    api->read_entire_file = Win32ReadEntireFile;
-    api->free_file_data   = Win32FreeFileData;
+    api->create_window     = Win32CreateWindow;
+    api->display_window    = Win32DisplayWindow;
+    api->read_entire_file  = Win32ReadEntireFile;
+    api->make_memory_arena = Win32MakeMemoryArena;
     
     api->window_class.hInstance = GetModuleHandle(null);
     api->window_class.hbrBackground = (HBRUSH) (COLOR_BACKGROUND);

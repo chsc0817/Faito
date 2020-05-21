@@ -1,7 +1,5 @@
-#include "bmp.h"
-#include <vector>
-#include <unordered_map>
 
+#include "bmp.h"
 
 image LoadBMP(u8_array source)
 {
@@ -34,20 +32,21 @@ image LoadBMP(u8_array source)
     return result;
 }
 
-typedef std::vector<pos2> pixel_queue;
-
 u32 index_of(image source, pos2 pos) {
     return pos.y * source.width + pos.x;
 }
 
-void propagate(image source, pos2 pos, u32 *map, pixel_queue *queue, u32 rect_index) {
+struct pixel_queue
+{
+    pos2 *base;
+    u32 count;
+};
+
+void propagate(image source, pos2 pos, u32 *map, pixel_queue *queue, u32 box_index, memory_arena *tmemory) {
     u32 index = index_of(source, pos);
 
-    if (source.data[index * 4 + 3] == 0) {
-        return;
-    }
-    map[index] = rect_index + 1;
-
+    assert(source.data[index * 4 + 3] != 0);
+    
     //left, right, top, bottom respectively
     pos2 addToVector[4] = {
         {pos.x - 1, pos.y},
@@ -57,48 +56,57 @@ void propagate(image source, pos2 pos, u32 *map, pixel_queue *queue, u32 rect_in
     };
 
     for (u8 i = 0; i < 4; i++) {
-        u32 index = index_of(source, addToVector[i]);
-        if((addToVector[i].x >= 0) && (addToVector[i].x < source.width) &&
-            (addToVector[i].y >= 0) && (addToVector[i].y < source.height) &&
-            (map[index] == 0)) {
-                queue->push_back(addToVector[i]);
+        auto pos = addToVector[i];
+        
+        u32 index = index_of(source, pos);
+        if((pos.x >= 0) && (pos.x < source.width) &&
+            (pos.y >= 0) && (pos.y < source.height) &&
+            (map[index] == 0) && (source.data[index * 4 + 3] != 0)) {
+                map[index] = box_index + 1;
+                reallocate_items(tmemory, &queue->base, ++queue->count);
+                queue->base[queue->count - 1] = pos;
         }
     }
 }
 
-bool find_pixels_for_single_sprite(image source, pos2 start, u32 *map, u32 rect_index){
+bool find_pixels_for_single_sprite(image source, pos2 start, u32 *map, u32 box_index, memory_arena *tmemory){
 
-    if (map[index_of(source, start)] != 0) {
+    auto index = index_of(source, start);
+    
+    if (map[index] != 0)
         return false;
-    }
-    pixel_queue queue = {start};
+        
+    pixel_queue queue = { allocate_items(tmemory, pos2, 1), 1 };
+    queue.base[0] = start;
+    map[index] = box_index + 1;
 
-    while (!queue.empty()) {
-        auto next = queue.back();
-        queue.pop_back();
-        propagate(source, next, map, &queue, rect_index);
+    while (queue.count) {
+        auto next = queue.base[queue.count - 1];
+        reallocate_items(tmemory, &queue.base, --queue.count);
+        
+        propagate(source, next, map, &queue, box_index, tmemory);
     }    
 
     return true;    
 }
 
-box2 *asd(u32 *box_count, image source) {
-    u32 *map = new u32[source.width * source.height];
+box2 * asd(u32 *out_box_count, image source, memory_arena *box_memory, memory_arena *tmemory) {
+    u32 *map = allocate_items(tmemory, u32, source.width * source.height);
     memset(map, 0, sizeof(u32) * source.width * source.height); 
 
-    u32 rect_index = 0;
+    u32 box_count = 0;
     for (s32 y = 0; y < source.height; y++) {
         for (s32 x = 0; x < source.width; x++) {
             if (source.data[(y * source.width + x) * 4 + 3] != 0) {
-                if (find_pixels_for_single_sprite(source, {x, y}, map, rect_index))
-                    rect_index++;
+                if (find_pixels_for_single_sprite(source, {x, y}, map, box_count, tmemory))
+                    box_count++;
             }
         }
     }
 
-    box2 * boxes = new box2[rect_index];
-    for (auto i = 0; i < rect_index; i++) {
-        boxes[i].min = {(s32)source.width, (s32)source.height};
+    box2 * boxes = allocate_items(box_memory, box2, box_count);
+    for (auto i = 0; i < box_count; i++) {
+        boxes[i].min = {(s32)source.width + 1, (s32)source.height + 1};
         boxes[i].max = {-1, -1};
     }
 
@@ -108,22 +116,24 @@ box2 *asd(u32 *box_count, image source) {
             if (box_index == -1) 
                 continue;
             
+            // max is + 1, since it is excluded
+            
             if (boxes[box_index].min.x > x)
                 boxes[box_index].min.x = x;
 
-            if (boxes[box_index].max.x < x)
-                boxes[box_index].max.x = x;
+            if (boxes[box_index].max.x <= x)
+                boxes[box_index].max.x = x + 1;
 
             if (boxes[box_index].min.y > y)
                 boxes[box_index].min.y = y;
 
-            if (boxes[box_index].max.y < y)
-                boxes[box_index].max.y = y;
+            if (boxes[box_index].max.y <= y)
+                boxes[box_index].max.y = y + 1;
         }
     }
 
-    *box_count = rect_index;
-    delete[] map;
+    *out_box_count = box_count;
+    free_items(tmemory, map);
     return boxes;
 }
 

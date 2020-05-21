@@ -6,6 +6,7 @@
 
 #include "basic.h"
 #include "input.h"
+#include "memory_arena.h"
 
 struct win32_api;
 struct win32_window;
@@ -24,7 +25,6 @@ typedef UPDATE_SIGNATURE((*update_function));
 #define UPDATE_DECLARATION UPDATE_SIGNATURE(Update)
 #endif
 
-
 #define CREATE_WINDOW_SIGNATURE(name) void name(win32_window *window, win32_api *api, s32 width, s32 height, cstring title)
 typedef CREATE_WINDOW_SIGNATURE((*create_window_function));
 
@@ -34,14 +34,14 @@ struct read_file_output
     bool ok;
 };
 
-#define READ_ENTIRE_FILE_SIGNATURE(name) read_file_output name(cstring file_path)
+#define READ_ENTIRE_FILE_SIGNATURE(name) read_file_output name(memory_arena *arena, cstring file_path)
 typedef READ_ENTIRE_FILE_SIGNATURE((*read_entire_file_function));
-
-#define FREE_FILE_DATA_SIGNATURE(name) void name(u8_array data)
-typedef FREE_FILE_DATA_SIGNATURE((*free_file_data_function));
 
 #define DISPLAY_WINDOW_SIGNATURE(name) void name(win32_window *window)
 typedef DISPLAY_WINDOW_SIGNATURE((*display_window_function));
+
+#define MAKE_MEMORY_ARENA(name) memory_arena name(win32_api *api, u32 byte_count)
+typedef MAKE_MEMORY_ARENA((*make_memory_arena_function));
 
 struct code_info {
     u8 code_path[MAX_PATH]; 
@@ -56,7 +56,8 @@ struct win32_api {
     create_window_function  create_window;
     display_window_function display_window;
     read_entire_file_function read_entire_file;
-    free_file_data_function   free_file_data;
+    
+    make_memory_arena_function make_memory_arena;
     
     WNDCLASSA window_class;
     HGLRC gl_context;
