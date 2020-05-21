@@ -20,6 +20,8 @@ struct game_state {
     random_generator rng;
     texture king_sprites;
     sprite king_idle;
+    u32 king_sprite_count;
+    box2 *king_sprite_boxes;  
 };
 
 texture LoadBMPTextureFromFile(win32_api *api, cstring file_path) {
@@ -49,7 +51,19 @@ INIT_DECLARATION {
 	state->window;
 	api->create_window(&state->window, api, 1280 * TARGET_WIDTH_OVER_HEIGHT, 1280, "Faito!");
 
-    state->king_sprites = LoadBMPTextureFromFile(api, "data/thekinga.bmp");
+    //state->king_sprites = LoadBMPTextureFromFile(api, "data/thekinga.bmp");
+    {   
+        auto result = api->read_entire_file("data/thekinga.bmp");
+        assert(result.ok);
+        //state->king_sprites = LoadBMPTexture(result.data);
+
+        auto image = LoadBMP(result.data);
+        state->king_sprites = MakeTexture(image.width, image.height, image.data);
+   
+        state->king_sprite_boxes = asd(&state->king_sprite_count, image);
+        api->free_file_data(result.data);
+    }
+
     state->king_idle.width = 61;
     state->king_idle.height = 116;
     state->king_idle.x = 15;
@@ -110,8 +124,17 @@ UPDATE_DECLARATION {
     f32 ground_y = renderer->canvas_height_in_texels * -0.22f;
 
     DrawRect(renderer, -renderer->canvas_width_in_texels, ground_y, 2 * canvas_width, canvas_height, Color32(0.1f, 0.8f, 0.01f), 0, 1);
-    DrawSprite(renderer, state->king_sprites, 0, ground_y, state->king_idle);
+//    DrawSprite(renderer, state->king_sprites, 0, ground_y, state->king_idle);
+   // DrawTexture(renderer, state->king_sprites, 0, 0, 0.5f, 0.5f);
+    
+    for (u32 i = 0; i < state->king_sprite_count; i++) {
+        auto box = state->king_sprite_boxes[i];
+        auto width = box.max.x - box.min.x;
+        auto height = box.max.y - box.min.y;
 
+        //DrawRect(renderer, box.min.x - state->king_sprites.width * 0.5f, box.min.y - state->king_sprites.height * 0.5f, width, height, Color32(1.0f, 0.0f, 0.0f, 0.25f));
+         DrawTexturedRect(renderer, state->king_sprites, box.min.x - state->king_sprites.width * 0.5f, box.min.y - state->king_sprites.height * 0.5f, box.min.x, box.min.y, width, height);
+    }
     Render(renderer);
 	
     api->display_window(&state->window);    

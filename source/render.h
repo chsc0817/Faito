@@ -7,6 +7,11 @@ struct texture {
 	u32 id;
 };
 
+struct sprite_array {
+	texture sprites[256];
+	s32 length;
+};
+
 union rgba32{
 	struct {
 		u8 r, g, b, a;
@@ -19,6 +24,13 @@ union rgba32{
 	u8 values[4];
 };
 
+struct pos2{
+    s32 x,y;
+};
+
+struct box2 {
+	pos2 min, max;
+};
 
 #pragma pack(push, 1)
 struct render_vertex {

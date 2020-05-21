@@ -233,6 +233,8 @@ texture MakeTexture (s32 width, s32 height, u8_array pixels) {
 	return result;
 }
 
+
+
 void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y, f32 tx, f32 ty, f32 width, f32 height, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
 	auto command = renderer->commands + renderer->command_count; 
 	renderer->command_count++;
