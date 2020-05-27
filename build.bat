@@ -25,16 +25,16 @@ del *.pdb > NUL 2> NUL
 del live.dll > NUL 2> NUL
 
 if %live_code_reloading% == true (
-	set options=%options% /DLIVE_CODE_RELOADING
-	rem while compile lock exists our application does not try to reload the new dll
-	echo compiling... > compile.lock
-	rem !options! uses changes to options immediately, otherwise %options% is only updated after if statement  
-	cl /Fe%name% %current%/source/main.cpp !options! /LD /INCREMENTAL:NO /link /PDB:"%name%%date%-%t%.pdb" 
-	del compile.lock
+    set options=%options% /DLIVE_CODE_RELOADING
+    rem while compile lock exists our application does not try to reload the new dll
+    echo compiling... > compile.lock
+    rem !options! uses changes to options immediately, otherwise %options% is only updated after if statement  
+    cl /Fe%name% %current%/source/main.cpp !options! /LD /INCREMENTAL:NO /link /PDB:"%name%%date%-%t%.pdb" 
+    del compile.lock
 )
 
 if not exist live.dll (
-	cl /Fe%name% %current%/source/win32_main.cpp %options% /link /INCREMENTAL:NO	
+    cl /Fe%name% %current%/source/win32_main.cpp %options% /link /INCREMENTAL:NO	 Shell32.lib
 )
 
 popd

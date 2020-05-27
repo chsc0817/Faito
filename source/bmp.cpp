@@ -32,23 +32,23 @@ image LoadBMP(u8_array source)
     return result;
 }
 
-u32 index_of(image source, pos2 pos) {
+u32 index_of(image source, vec2s pos) {
     return pos.y * source.width + pos.x;
 }
 
 struct pixel_queue
 {
-    pos2 *base;
+    vec2s *base;
     u32 count;
 };
 
-void propagate(image source, pos2 pos, u32 *map, pixel_queue *queue, u32 box_index, memory_arena *tmemory) {
+void propagate(image source, vec2s pos, u32 *map, pixel_queue *queue, u32 box_index, memory_arena *tmemory) {
     u32 index = index_of(source, pos);
 
     assert(source.data[index * 4 + 3] != 0);
     
     //left, right, top, bottom respectively
-    pos2 addToVector[4] = {
+    vec2s addToVector[4] = {
         {pos.x - 1, pos.y},
         {pos.x + 1, pos.y},
         {pos.x, pos.y + 1},
@@ -69,14 +69,14 @@ void propagate(image source, pos2 pos, u32 *map, pixel_queue *queue, u32 box_ind
     }
 }
 
-bool find_pixels_for_single_sprite(image source, pos2 start, u32 *map, u32 box_index, memory_arena *tmemory){
+bool find_pixels_for_single_sprite(image source, vec2s start, u32 *map, u32 box_index, memory_arena *tmemory){
 
     auto index = index_of(source, start);
     
     if (map[index] != 0)
         return false;
         
-    pixel_queue queue = { allocate_items(tmemory, pos2, 1), 1 };
+    pixel_queue queue = { allocate_items(tmemory, vec2s, 1), 1 };
     queue.base[0] = start;
     map[index] = box_index + 1;
 
@@ -90,7 +90,7 @@ bool find_pixels_for_single_sprite(image source, pos2 start, u32 *map, u32 box_i
     return true;    
 }
 
-box2 * asd(u32 *out_box_count, image source, memory_arena *box_memory, memory_arena *tmemory) {
+box2s * asd(u32 *out_box_count, image source, memory_arena *box_memory, memory_arena *tmemory) {
     u32 *map = allocate_items(tmemory, u32, source.width * source.height);
     memset(map, 0, sizeof(u32) * source.width * source.height); 
 
@@ -104,7 +104,7 @@ box2 * asd(u32 *out_box_count, image source, memory_arena *box_memory, memory_ar
         }
     }
 
-    box2 * boxes = allocate_items(box_memory, box2, box_count);
+    box2s * boxes = allocate_items(box_memory, box2s, box_count);
     for (auto i = 0; i < box_count; i++) {
         boxes[i].min = {(s32)source.width + 1, (s32)source.height + 1};
         boxes[i].max = {-1, -1};

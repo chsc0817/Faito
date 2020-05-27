@@ -227,119 +227,97 @@ texture MakeTexture (s32 width, s32 height, u8_array pixels) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     
-	result.width = width;
-	result.height = height;
+	result.size.width = width;
+	result.size.height = height;
     
 	return result;
 }
 
-
-
-void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y, f32 tx, f32 ty, f32 width, f32 height, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
-	auto command = renderer->commands + renderer->command_count; 
-	renderer->command_count++;
-	assert(renderer->command_count <= ArrayCountOf(renderer->commands));
-
-	command->texture_id = my_texture.id;
-	command->vertex_offset = renderer->vertex_count;
-	command->vertex_count = 6;
-
-	f32 texel_width = 1.0f / my_texture.width; 
-    f32 texel_height = 1.0f / my_texture.height;
-
+void DrawTexturedRect(render_context *renderer, texture my_texture, vec2s position, box2s texture_box, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
+    auto command = renderer->commands + renderer->command_count; 
+    renderer->command_count++;
+    assert(renderer->command_count <= ArrayCountOf(renderer->commands));
+    
+    command->texture_id = my_texture.id;
+    command->vertex_offset = renderer->vertex_count;
+    command->vertex_count = 6;
+    
+    f32 texel_width = 1.0f / my_texture.size.width; 
+    f32 texel_height = 1.0f / my_texture.size.height;
+    
     f32 canvas_texel_width = renderer->canvas_texel_width;
     f32 canvas_texel_height = renderer->canvas_texel_height;
     x_alignment = Lerp(x_alignment, 1 - x_alignment, x_flip);
     y_alignment = Lerp(y_alignment, 1 - y_alignment, y_flip);
-    x -= x_alignment * width;
-	y -= y_alignment * height;
-
-	f32 tx_l = tx * texel_width;
-	f32 tx_r = (tx + width) * texel_width;
-	f32 tx0 = Lerp(tx_l, tx_r, x_flip);
-	f32 tx1 = Lerp(tx_r, tx_l, x_flip);
-
-	f32 ty_l = ty * texel_height;
-	f32 ty_r = (ty + height) * texel_height;
-	f32 ty0 = Lerp(ty_l, ty_r, y_flip);
-	f32 ty1 = Lerp(ty_r, ty_l, y_flip);
-
-	auto vertices = renderer->vertices + renderer->vertex_count;
-	renderer->vertex_count += 6;
-	assert(renderer->vertex_count <= ArrayCountOf(renderer->vertices));
-
-	vertices[0].x = x * canvas_texel_width;
-	vertices[0].y = y * canvas_texel_height;
-	vertices[0].z = z;
-	vertices[0].u = tx0;
-	vertices[0].v = ty0;
-	vertices[0].color = color;
-
-	vertices[1].x = (x + width) * canvas_texel_width;
-	vertices[1].y = y * canvas_texel_height;
-	vertices[1].z = z;
-	vertices[1].u = tx1;
-	vertices[1].v = ty0;
-	vertices[1].color = color;
-
-	vertices[2].x = (x + width) * canvas_texel_width;
-	vertices[2].y = (y + height) * canvas_texel_height;
-	vertices[2].z = z;
-	vertices[2].u = tx1;
-	vertices[2].v = ty1;
-	vertices[2].color = color;
-
-	vertices[3].x = x * canvas_texel_width;
-	vertices[3].y = (y + height) * canvas_texel_height;
-	vertices[3].z = z;
-	vertices[3].u = tx0;
-	vertices[3].v = ty1;
-	vertices[3].color = color;
-
-	vertices[4] = vertices[0];
-	vertices[5] = vertices[2];
-#if 0
-    glBegin(GL_TRIANGLES);
-    glTexCoord2f(tx0, ty0);
-    glColor4f(1, 1, 1, alpha);
-    glVertex3f();
     
-    glTexCoord2f(tx1, ty0);
-    glVertex3f(, y * canvas_texel_height, z);
+    auto size = texture_box.max - texture_box.min;
     
-    glTexCoord2f(tx1, ty1);
-    glVertex3f((x + width) * canvas_texel_width, (y + height) * canvas_texel_height, z);
+    position.x -= x_alignment * size.width;
+    position.y -= y_alignment * size.height;
     
-    glTexCoord2f(tx0, ty1);
-    glVertex3f(x * canvas_texel_width, (y + height) * canvas_texel_height, z);
+    f32 tx_l = texture_box.min.x * texel_width;
+    f32 tx_r = texture_box.max.x * texel_width;
+    f32 tx0 = Lerp(tx_l, tx_r, x_flip);
+    f32 tx1 = Lerp(tx_r, tx_l, x_flip);
     
-    glTexCoord2f(tx0, ty0);
-    glVertex3f(x * canvas_texel_width, y * canvas_texel_height, z);
+    f32 ty_l = texture_box.min.y * texel_height;
+    f32 ty_r = texture_box.max.y * texel_height;
+    f32 ty0 = Lerp(ty_l, ty_r, y_flip);
+    f32 ty1 = Lerp(ty_r, ty_l, y_flip);
     
-    glTexCoord2f(tx1, ty1);
-    glVertex3f((x + width) * canvas_texel_width, (y + height) * canvas_texel_height, z);
-    glEnd();
-#endif
+    auto vertices = renderer->vertices + renderer->vertex_count;
+    renderer->vertex_count += 6;
+    assert(renderer->vertex_count <= ArrayCountOf(renderer->vertices));
+    
+    vertices[0].x = position.x * canvas_texel_width;
+    vertices[0].y = position.y * canvas_texel_height;
+    vertices[0].z = z;
+    vertices[0].u = tx0;
+    vertices[0].v = ty0;
+    vertices[0].color = color;
+    
+    vertices[1].x = (position.x + size.width) * canvas_texel_width;
+    vertices[1].y = position.y * canvas_texel_height;
+    vertices[1].z = z;
+    vertices[1].u = tx1;
+    vertices[1].v = ty0;
+    vertices[1].color = color;
+    
+    vertices[2].x = (position.x + size.width) * canvas_texel_width;
+    vertices[2].y = (position.y + size.height) * canvas_texel_height;
+    vertices[2].z = z;
+    vertices[2].u = tx1;
+    vertices[2].v = ty1;
+    vertices[2].color = color;
+    
+    vertices[3].x = position.x * canvas_texel_width;
+    vertices[3].y = (position.y + size.height) * canvas_texel_height;
+    vertices[3].z = z;
+    vertices[3].u = tx0;
+    vertices[3].v = ty1;
+    vertices[3].color = color;
+    
+    vertices[4] = vertices[0];
+    vertices[5] = vertices[2];
 }
 
-void DrawRect(render_context *renderer, f32 x, f32 y, f32 width, f32 height, rgba32 color, f32 x_alignment, f32 y_alignment, f32 z) {
-	DrawTexturedRect(renderer, renderer->white_texture, x, y, 0, 0, width, height, x_alignment, y_alignment, 0, 0, color, z);
-
+void DrawRect(render_context *renderer, vec2s position, s32 width, s32 height, rgba32 color, f32 x_alignment, f32 y_alignment, f32 z) {
+    DrawTexturedRect(renderer, renderer->white_texture, position, { 0, 0, width, height }, x_alignment, y_alignment, 0, 0, color, z);
 }
 
-void DrawTexture(render_context *renderer, texture my_texture, f32 x, f32 y, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
-	DrawTexturedRect(renderer, my_texture, x, y, 0, 0, my_texture.width, my_texture.height, x_alignment, y_alignment, x_flip, y_flip, color, z);
+void DrawTexture(render_context *renderer, texture my_texture, vec2s position, f32 x_alignment, f32 y_alignment, f32 x_flip, f32 y_flip, rgba32 color, f32 z) {
+    	DrawTexturedRect(renderer, my_texture, position, { 0, 0, my_texture.size.width, my_texture.size.height }, x_alignment, y_alignment, x_flip, y_flip, color, z);
 }
 
 void Render(render_context *renderer) {
-	u32 vertex_buffer, vertex_array;
+    u32 vertex_buffer, vertex_array;
 
-	glGenVertexArrays(1, &vertex_array);
-	glBindVertexArray(vertex_array);
+    glGenVertexArrays(1, &vertex_array);
+    glBindVertexArray(vertex_array);
 
-	glGenBuffers(1, &vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, renderer->vertex_count * sizeof(render_vertex), renderer->vertices, GL_STREAM_DRAW);
+    glGenBuffers(1, &vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+    glBufferData(GL_ARRAY_BUFFER, renderer->vertex_count * sizeof(render_vertex), renderer->vertices, GL_STREAM_DRAW);
 
 #if 1
 	glEnableVertexAttribArray(Vertex_Position);
@@ -359,18 +337,20 @@ void Render(render_context *renderer) {
 	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(render_vertex), (void *) (5 * sizeof(f32)));
 #endif
 
-	glUseProgram(renderer->program);
-	glUniform1i(renderer->diffuse_texture_uniform, 0);
-	glActiveTexture(GL_TEXTURE0 + 0);
+    glDisable(GL_DEPTH_TEST);
 
-	for (u32 i = 0; i < renderer->command_count; ++i) {
-		glBindTexture(GL_TEXTURE_2D, renderer->commands[i].texture_id);
-		glDrawArrays(GL_TRIANGLES, renderer->commands[i].vertex_offset, renderer->commands[i].vertex_count);
-	}
+    glUseProgram(renderer->program);
+    glUniform1i(renderer->diffuse_texture_uniform, 0);
+    glActiveTexture(GL_TEXTURE0 + 0);
 
-	glDeleteBuffers(1, &vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+    for (u32 i = 0; i < renderer->command_count; ++i) {
+        glBindTexture(GL_TEXTURE_2D, renderer->commands[i].texture_id);
+        glDrawArrays(GL_TRIANGLES, renderer->commands[i].vertex_offset, renderer->commands[i].vertex_count);
+    }
 
-	renderer->vertex_count = 0;
-	renderer->command_count = 0;
+    glDeleteBuffers(1, &vertex_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    renderer->vertex_count = 0;
+    renderer->command_count = 0;
 }

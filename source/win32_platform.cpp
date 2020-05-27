@@ -268,5 +268,4 @@ void Win32Init(win32_api *api) {
     LARGE_INTEGER ticks_per_second;
     QueryPerformanceFrequency(&ticks_per_second);
     api->ticks_per_second = ticks_per_second.QuadPart;
-
-    }
+}

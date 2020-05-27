@@ -2,9 +2,29 @@
 
 #include "basic.h"
 
+union vec2s {
+    struct { s32 x,     y; };
+    struct { s32 width, height; };
+};
+
+vec2s operator+(vec2s a, vec2s b)
+{
+    return { a.x + b.x, a.y + b.y };
+}
+
+vec2s operator-(vec2s a, vec2s b)
+{
+    return { a.x - b.x, a.y - b.y };
+}
+
+vec2s operator*(vec2s a, f32 scale)
+{
+    return { (s32)(a.x * scale), (s32)(a.y * scale) };
+}
+
 struct texture {
-	s32 width, height;
-	u32 id;
+    vec2s size;
+    u32 id;
 };
 
 struct sprite_array {
@@ -13,25 +33,21 @@ struct sprite_array {
 };
 
 union rgba32{
-	struct {
-		u8 r, g, b, a;
-	};
+    struct {
+        u8 r, g, b, a;
+    };
 
-	struct {
-		u8 red, green, blue, alpha;
-	};
+    struct {
+        u8 red, green, blue, alpha;
+    };
 
-	u8 values[4];
-};
-
-struct pos2{
-    s32 x,y;
+    u8 values[4];
 };
 
 // max is exclusiv
 // so that size is max - min
-struct box2 {
-	pos2 min, max;
+struct box2s {
+	vec2s min, max;
 };
 
 #pragma pack(push, 1)
@@ -71,7 +87,8 @@ const f32 DEFAULT_FLIP = 0.0f;
 const rgba32 DEFAULT_COLOR = Color32(1.0f, 1.0f, 1.0f, 1.0f);
 
 render_context MakeRenderContext(f32 target_width_over_height, f32 canvas_width_in_texels = DEFAULT_CANVAS_WIDTH_IN_TEXELS);
-void DrawTexturedRect(render_context *renderer, texture my_texture, f32 x, f32 y, f32 tx, f32 ty, f32 width, f32 height, f32 x_alignment = DEFAULT_X_ALIGNMENT, f32 y_alignment = DEFAULT_Y_ALIGNMENT, f32 x_flip = DEFAULT_FLIP, f32 y_flip = DEFAULT_FLIP, rgba32 color = DEFAULT_COLOR, f32 z = 0);
-void DrawRect(render_context *renderer, f32 x, f32 y, f32 width, f32 height, rgba32 color = DEFAULT_COLOR, f32 x_alignment = 0, f32 y_alignment = DEFAULT_Y_ALIGNMENT, f32 z = 0);
-void DrawTexture(render_context *renderer, texture my_texture, f32 x, f32 y, f32 x_alignment = DEFAULT_X_ALIGNMENT, f32 y_alignment = DEFAULT_Y_ALIGNMENT, f32 x_flip = DEFAULT_FLIP, f32 y_flip = DEFAULT_FLIP, rgba32 color = DEFAULT_COLOR, f32 z = 0);
+void DrawTexturedRect(render_context *renderer, texture my_texture, vec2s position, box2s texture_box, f32 x_alignment = DEFAULT_X_ALIGNMENT, f32 y_alignment = DEFAULT_Y_ALIGNMENT, f32 x_flip = DEFAULT_FLIP, f32 y_flip = DEFAULT_FLIP, rgba32 color = DEFAULT_COLOR, f32 z = 0);
+void DrawRect(render_context *renderer, vec2s position, s32 width, s32 height, rgba32 color = DEFAULT_COLOR, f32 x_alignment = 0, f32 y_alignment = DEFAULT_Y_ALIGNMENT, f32 z = 0);
+void DrawTexture(render_context *renderer, texture my_texture, vec2s position, f32 x_alignment = DEFAULT_X_ALIGNMENT, f32 y_alignment = DEFAULT_Y_ALIGNMENT, f32 x_flip = DEFAULT_FLIP, f32 y_flip = DEFAULT_FLIP, rgba32 color = DEFAULT_COLOR, f32 z = 0);
 void Render(render_context *renderer);
+

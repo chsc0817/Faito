@@ -82,18 +82,38 @@ void InitCode(code_info *code, cstring application_path) {
 
 #endif
 
-#if 1
+#if ß0
 
 s32 main(s32 argument_count, cstring arguments[]) {
 
 #else
 
+#include <shellapi.h>
+
 s32 WinMain(HINSTANCE instance, HINSTANCE prev_istance, LPSTR command_line, int show_command) {
-
-    // TODO: FIX THIS!!!!!!!!!
     s32 argument_count;
-    cstring *arguments = CommandLineToArgW(command_line, &argument_count);
-
+    auto utf16_command_line = GetCommandLineW();
+    auto utf16_arguments = CommandLineToArgvW(utf16_command_line, &argument_count);
+    
+    // TODO: add and use memory_arena for api
+    cstring *arguments = new cstring[argument_count];
+    
+    for (u32 i = 0; i < argument_count; i++)
+    {
+        u32 byte_count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16_arguments[i], -1, null, 0, null, null);
+        if (!byte_count)
+        {
+            char buffer[1024];
+            sprintf_s(buffer, ArrayCountOf(buffer), "GetLastError() = %d\n", GetLastError());
+            
+            MessageBox(null, buffer, "Assertion Fail", MB_OK);
+            return -1;
+        }
+        
+        arguments[i] = new char[byte_count];
+        WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16_arguments[i], -1, arguments[i], byte_count, null, null);
+    }
+    
 #endif
 
     win32_api api;
@@ -109,7 +129,6 @@ s32 WinMain(HINSTANCE instance, HINSTANCE prev_istance, LPSTR command_line, int 
         api.application.update(&api, api.application.init_data);
     }   
     
-	return 0;
+    return 0;
 }
-
 
